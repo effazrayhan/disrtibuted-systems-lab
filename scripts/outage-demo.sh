@@ -11,6 +11,19 @@ fi
 echo "Starting both services..."
 "${DOCKER[@]}" compose up -d --build
 
+ready=0
+for _ in $(seq 1 30); do
+  if curl -fsS http://localhost:8081/healthz >/dev/null 2>&1 && curl -fsS http://localhost:8082/healthz >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "$ready" -ne 1 ]; then
+  "${DOCKER[@]}" compose logs
+  exit 1
+fi
+
 trap '"${DOCKER[@]}" compose up -d restaurant >/dev/null 2>&1 || true' EXIT
 
 echo

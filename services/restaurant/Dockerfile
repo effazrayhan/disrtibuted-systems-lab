@@ -1,13 +1,9 @@
-FROM golang:1.27-alpine AS build
-WORKDIR /src
-COPY go.mod ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/restaurant-service .
-
-FROM alpine:3.21
-RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
-COPY --from=build /out/restaurant-service /usr/local/bin/restaurant-service
-USER 10001
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && useradd --uid 10001 --create-home appuser
+COPY app.py .
+USER appuser
 EXPOSE 8081
-ENTRYPOINT ["restaurant-service"]
+CMD ["python", "app.py"]

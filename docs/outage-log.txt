@@ -1,29 +1,38 @@
 POST with dependency up:
 HTTP/1.1 201 Created
-Content-Type: application/json
-X-Correlation-Id: demo-up
-Date: Wed, 18 Nov 2026 09:11:56 GMT
-Content-Length: 206
+date: Wed, 18 Nov 2026 09:57:21 GMT
+server: uvicorn
+content-length: 199
+content-type: application/json
+x-correlation-id: demo-up
 
-{"order_id":"198bfcdbb66896ecb0a9b2be0457817f","correlation_id":"demo-up","status":"created","created_at":"2026-11-18T09:11:56.556125404Z","restaurant_id":"r1","items":[{"menu_item_id":"m1","quantity":1}]}
-
+{"order_id":"14c2bd39d9694dc8a71bc253a61850fe","correlation_id":"demo-up","status":"created","created_at":"2026-11-18T09:57:21.602Z","restaurant_id":"r1","items":[{"menu_item_id":"m1","quantity":1}]}
 Stopping restaurant...
  Container assignment-1-restaurant-1  Stopping
  Container assignment-1-restaurant-1  Stopped
 
 POST with dependency down:
 HTTP/1.1 503 Service Unavailable
-Content-Type: application/json
-X-Correlation-Id: demo-down
-Date: Wed, 18 Nov 2026 09:11:56 GMT
-Content-Length: 35
+date: Wed, 18 Nov 2026 09:57:22 GMT
+server: uvicorn
+content-length: 34
+content-type: application/json
+x-correlation-id: demo-down
 
 {"error":"dependency_unavailable"}
-elapsed_ms=6
+elapsed_ms=13
 
 Order service logs:
-order-1  | 2026/11/18 09:11:56 order-service listening on :8082 restaurant_url=http://restaurant:8081 timeout=2s
-order-1  | 2026/11/18 09:11:56 cid=demo-up order_id=198bfcdbb66896ecb0a9b2be0457817f restaurant_id=r1 status=created
-order-1  | 2026/11/18 09:11:56 cid=demo-up method=POST path=/orders duration_ms=1
-order-1  | 2026/11/18 09:11:56 cid=demo-down event=dependency_error error=Get "http://restaurant:8081/restaurants/r1": dial tcp: lookup restaurant on 127.0.0.11:53: server misbehaving
-order-1  | 2026/11/18 09:11:56 cid=demo-down method=POST path=/orders duration_ms=0
+order-1  | INFO:     Started server process [1]
+order-1  | INFO:     Waiting for application startup.
+order-1  | INFO:     Application startup complete.
+order-1  | INFO:     Uvicorn running on http://0.0.0.0:8082 (Press CTRL+C to quit)
+order-1  | 2026-11-18 09:57:21,580 cid=da216ae283814a548c4e7e5b82d90b53 method=GET path=/healthz duration_ms=0
+order-1  | INFO:     172.18.0.1:49580 - "GET /healthz HTTP/1.1" 200 OK
+order-1  | 2026-11-18 09:57:21,601 HTTP Request: GET http://restaurant:8081/restaurants/r1 "HTTP/1.1 200 OK"
+order-1  | 2026-11-18 09:57:21,602 cid=demo-up order_id=14c2bd39d9694dc8a71bc253a61850fe restaurant_id=r1 status=created
+order-1  | 2026-11-18 09:57:21,602 cid=demo-up method=POST path=/orders duration_ms=16
+order-1  | INFO:     172.18.0.1:49586 - "POST /orders HTTP/1.1" 201 Created
+order-1  | 2026-11-18 09:57:22,100 cid=demo-down event=dependency_error error=[Errno -3] Temporary failure in name resolution
+order-1  | 2026-11-18 09:57:22,101 cid=demo-down method=POST path=/orders duration_ms=5
+order-1  | INFO:     172.18.0.1:49590 - "POST /orders HTTP/1.1" 503 Service Unavailable

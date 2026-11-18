@@ -1,11 +1,11 @@
-# Restaurant Service
+# Restaurant Service (FastAPI)
 
 Read-only catalogue service for Assignment 01.
 
 ## Run locally
 
 ```bash
-PORT=8081 go run .
+PORT=8081 python app.py
 ```
 
 ## Endpoints

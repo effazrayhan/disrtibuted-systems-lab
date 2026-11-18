@@ -1,6 +1,6 @@
 # Assignment 01. Containerized Order and Restaurant Services
 
-Two isolated Go services communicating over HTTP. The Order Service never calls Restaurant code directly; it performs a real HTTP request with a bounded timeout and maps failures to documented HTTP responses.
+This branch implements the assignment with **Python FastAPI** instead of Go. Two isolated services communicate over HTTP. The Order Service never calls Restaurant code directly; it performs a real HTTP request with a bounded timeout and maps failures to documented HTTP responses.
 
 ## Layout
 
@@ -8,11 +8,21 @@ Two isolated Go services communicating over HTTP. The Order Service never calls 
 Assignment-1/
 ├── api/examples.md
 ├── docs/
+├── requirements-dev.txt
 ├── scripts/outage-demo.sh
 ├── services/
 │   ├── order/
+│   │   ├── app.py
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── tests/
 │   └── restaurant/
+│       ├── app.py
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       └── tests/
 ├── docker-compose.yml
+├── run.sh
 └── README.md
 ```
 
@@ -24,37 +34,45 @@ curl -sS http://localhost:8081/healthz
 curl -sS http://localhost:8082/healthz
 ```
 
+Or simply:
+
+```bash
+./run.sh
+```
+
 The Order Service container uses `RESTAURANT_URL=http://restaurant:8081` (Compose service name), not `localhost`.
 
 ## Run locally without Docker
 
 ```bash
-export PATH="$HOME/.local/go/bin:$PATH"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r services/restaurant/requirements.txt
+pip install -r services/order/requirements.txt
 
-cd services/restaurant
-PORT=8081 go run . &
-cd ../order
-RESTAURANT_URL=http://localhost:8081 PORT=8082 go run . &
+PORT=8081 python services/restaurant/app.py &
+RESTAURANT_URL=http://localhost:8081 PORT=8082 python services/order/app.py &
 ```
 
 ## Tests
 
 ```bash
-export PATH="$HOME/.local/go/bin:$PATH"
-(cd services/restaurant && go test -race ./...)
-(cd services/order && go test -race ./...)
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+
+(cd services/restaurant && pytest -q)
+(cd services/order && pytest -q)
 ```
 
-Test cases cover success, health, malformed JSON, invalid quantity, missing restaurant, missing item, dependency outage with bounded latency, order lookup, and 20 concurrent POSTs producing unique IDs.
+Tests cover health, success, malformed JSON, missing fields, invalid quantity, duplicate item, missing restaurant, missing item, dependency outage with bounded latency, order lookup, and 20 concurrent POSTs producing unique IDs.
 
 ## Outage experiment
 
 ```bash
-chmod +x scripts/outage-demo.sh
 ./scripts/outage-demo.sh
 ```
 
-It starts both containers, submits a successful order, stops the Restaurant Service, submits another order, records the elapsed time and HTTP response, and prints correlation-ID-tagged logs. A local run is saved in `docs/outage-log.txt`.
+It starts both containers, submits a successful order, stops the Restaurant Service, submits another order, records the elapsed time and HTTP response, and prints correlation-ID-tagged logs. A run is saved in `docs/outage-log.txt`.
 
 ## API contract
 
@@ -68,7 +86,7 @@ See `api/examples.md` for full request/response examples.
 ## Implementation notes
 
 - Seed data: 3 restaurants, 9 menu items.
-- Order state is an in-memory `map` guarded by `sync.RWMutex` (A1 scope).
-- `order_id` and `correlation_id` are 128-bit random hex values from `crypto/rand`.
+- Order state is an in-memory `dict` guarded by `asyncio.Lock` (A1 scope).
+- `order_id` and `correlation_id` are random 128-bit hex values from `uuid.uuid4().hex`.
 - Correlation IDs are accepted from `X-Correlation-ID`, echoed in response headers, and included in logs.
-- No third-party Go modules are used; both Dockerfiles run as a non-root user.
+- Both Dockerfiles use `python:3.12-slim`, install only runtime dependencies, and run as a non-root user.

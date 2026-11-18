@@ -1,7 +1,8 @@
 *.out
 coverage.txt
 *.log
-services/order/order-service
-services/restaurant/restaurant-service
+__pycache__/
+.venv/
+.pytest_cache/
 .DS_Store
 sudo-setup.txt

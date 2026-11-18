@@ -1,11 +1,11 @@
-# Order Service
+# Order Service (FastAPI)
 
 Creates orders after validating restaurant and item IDs over HTTP with the Restaurant Service.
 
 ## Run locally
 
 ```bash
-RESTAURANT_URL=http://localhost:8081 PORT=8082 go run .
+RESTAURANT_URL=http://localhost:8081 PORT=8082 python app.py
 ```
 
 `RESTAURANT_URL` is required. `RESTAURANT_TIMEOUT_MS` defaults to 2000.
