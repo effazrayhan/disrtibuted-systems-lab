@@ -1,0 +1,32 @@
+services:
+  restaurant:
+    build: ./services/restaurant
+    environment:
+      PORT: "8081"
+    ports:
+      - "8081:8081"
+    networks:
+      - a1net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  order:
+    build: ./services/order
+    environment:
+      PORT: "8082"
+      RESTAURANT_URL: "http://restaurant:8081"
+      RESTAURANT_TIMEOUT_MS: "2000"
+    ports:
+      - "8082:8082"
+    networks:
+      - a1net
+    depends_on:
+      restaurant:
+        condition: service_healthy
+
+networks:
+  a1net:
+    driver: bridge

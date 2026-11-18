@@ -1,0 +1,7 @@
+*.out
+coverage.txt
+*.log
+services/order/order-service
+services/restaurant/restaurant-service
+.DS_Store
+sudo-setup.txt

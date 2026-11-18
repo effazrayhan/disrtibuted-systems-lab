@@ -1,0 +1,31 @@
+POST with dependency up:
+HTTP/1.1 201 Created
+Content-Type: application/json
+X-Correlation-Id: demo-up
+Date: Wed, 18 Nov 2026 06:46:07 GMT
+Content-Length: 206
+
+{"order_id":"768ef6796d0cdd7e0986274529427f7d","correlation_id":"demo-up","status":"created","created_at":"2026-11-18T06:46:07.347277276Z","restaurant_id":"r1","items":[{"menu_item_id":"m1","quantity":1}]}
+
+Stopping restaurant...
+ Container assignment-1-restaurant-1  Stopping
+ Container assignment-1-restaurant-1  Stopped
+
+POST with dependency down:
+HTTP/1.1 503 Service Unavailable
+Content-Type: application/json
+X-Correlation-Id: demo-down
+Date: Wed, 18 Nov 2026 06:46:07 GMT
+Content-Length: 35
+
+{"error":"dependency_unavailable"}
+elapsed_ms=14
+
+Order service logs:
+order-1  | 2026/11/18 06:46:07 order-service listening on :8082 restaurant_url=http://restaurant:8081 timeout=2s
+order-1  | 2026/11/18 06:46:07 cid=demo-up method=POST path=/orders event=start
+order-1  | 2026/11/18 06:46:07 cid=demo-up order_id=768ef6796d0cdd7e0986274529427f7d restaurant_id=r1 status=created
+order-1  | 2026/11/18 06:46:07 cid=demo-up method=POST path=/orders duration_ms=0 event=done
+order-1  | 2026/11/18 06:46:07 cid=demo-down method=POST path=/orders event=start
+order-1  | 2026/11/18 06:46:07 cid=demo-down event=dependency_error error=Get "http://restaurant:8081/restaurants/r1": dial tcp: lookup restaurant on 127.0.0.11:53: server misbehaving
+order-1  | 2026/11/18 06:46:07 cid=demo-down method=POST path=/orders duration_ms=1 event=done
