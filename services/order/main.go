@@ -33,6 +33,8 @@ type orderItem struct {
 	Quantity   int    `json:"quantity"`
 }
 
+var errRestaurantNotFound = errors.New("restaurant not found")
+
 type createOrderRequest struct {
 	RestaurantID string      `json:"restaurant_id"`
 	Items        []orderItem `json:"items"`
@@ -69,25 +71,15 @@ func (s *Store) Get(id string) (Order, bool) {
 	return order, ok
 }
 
-type upstreamStatusError struct {
-	status int
-}
-
-func (e *upstreamStatusError) Error() string {
-	return fmt.Sprintf("restaurant service returned status %d", e.status)
-}
-
 type RestaurantClient struct {
-	baseURL    string
-	httpClient *http.Client
-	timeout    time.Duration
+	baseURL string
+	timeout time.Duration
 }
 
 func NewRestaurantClient(baseURL string, timeout time.Duration) *RestaurantClient {
 	return &RestaurantClient{
-		baseURL:    strings.TrimRight(baseURL, "/"),
-		httpClient: &http.Client{Timeout: timeout},
-		timeout:    timeout,
+		baseURL: strings.TrimRight(baseURL, "/"),
+		timeout: timeout,
 	}
 }
 
@@ -103,14 +95,17 @@ func (c *RestaurantClient) Get(ctx context.Context, correlationID, restaurantID 
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("X-Correlation-ID", correlationID)
 
-	response, err := c.httpClient.Do(request)
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return restaurantResponse{}, err
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode == http.StatusNotFound {
+		return restaurantResponse{}, errRestaurantNotFound
+	}
 	if response.StatusCode != http.StatusOK {
-		return restaurantResponse{}, &upstreamStatusError{status: response.StatusCode}
+		return restaurantResponse{}, fmt.Errorf("restaurant service returned status %d", response.StatusCode)
 	}
 
 	var restaurant restaurantResponse
@@ -173,8 +168,7 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 
 	restaurant, err := s.client.Get(r.Context(), correlationID, request.RestaurantID)
 	if err != nil {
-		var statusError *upstreamStatusError
-		if errors.As(err, &statusError) && statusError.status == http.StatusNotFound {
+		if errors.Is(err, errRestaurantNotFound) {
 			writeError(w, http.StatusNotFound, "restaurant_not_found")
 			return
 		}
@@ -224,9 +218,8 @@ func withRequestLog(next http.Handler) http.Handler {
 		r.Header.Set("X-Correlation-ID", correlationID)
 		w.Header().Set("X-Correlation-ID", correlationID)
 		start := time.Now()
-		log.Printf("cid=%s method=%s path=%s event=start", correlationID, r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
-		log.Printf("cid=%s method=%s path=%s duration_ms=%d event=done", correlationID, r.Method, r.URL.Path, time.Since(start).Milliseconds())
+		log.Printf("cid=%s method=%s path=%s duration_ms=%d", correlationID, r.Method, r.URL.Path, time.Since(start).Milliseconds())
 	})
 }
 

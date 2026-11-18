@@ -103,9 +103,8 @@ func withRequestLog(next http.Handler) http.Handler {
 		r.Header.Set("X-Correlation-ID", correlationID)
 		w.Header().Set("X-Correlation-ID", correlationID)
 		start := time.Now()
-		log.Printf("cid=%s method=%s path=%s event=start", correlationID, r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
-		log.Printf("cid=%s method=%s path=%s duration_ms=%d event=done", correlationID, r.Method, r.URL.Path, time.Since(start).Milliseconds())
+		log.Printf("cid=%s method=%s path=%s duration_ms=%d", correlationID, r.Method, r.URL.Path, time.Since(start).Milliseconds())
 	})
 }
 

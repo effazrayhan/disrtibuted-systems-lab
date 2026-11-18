@@ -3,10 +3,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "Starting both services..."
-docker compose up -d --build
+DOCKER=(docker)
+if ! docker info >/dev/null 2>&1; then
+  DOCKER=(sudo docker)
+fi
 
-trap 'docker compose up -d restaurant >/dev/null 2>&1 || true' EXIT
+echo "Starting both services..."
+"${DOCKER[@]}" compose up -d --build
+
+trap '"${DOCKER[@]}" compose up -d restaurant >/dev/null 2>&1 || true' EXIT
 
 echo
 echo "POST with dependency up:"
@@ -17,7 +22,7 @@ curl -sS -i -X POST http://localhost:8082/orders \
 
 echo
 echo "Stopping restaurant..."
-docker compose stop restaurant
+"${DOCKER[@]}" compose stop restaurant
 
 echo
 echo "POST with dependency down:"
@@ -31,4 +36,4 @@ echo "elapsed_ms=$((end_ms - start_ms))"
 
 echo
 echo "Order service logs:"
-docker compose logs --tail=50 order
+"${DOCKER[@]}" compose logs --tail=50 order
