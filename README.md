@@ -1,203 +1,47 @@
-# Assignment 01 — FastAPI Implementation
+# Assignment 01 — Containerized Order and Restaurant Services
 
-This branch (`lab-1-fastapi`) contains the Python FastAPI version of the assignment. The original Go version is on `lab-1`.
+Two independent FastAPI services communicating over HTTP (no direct imports).
 
-Two independent services talk over real HTTP:
+- **Restaurant Service** (`8081`): `GET /healthz`, `GET /restaurants`, `GET /restaurants/{id}` (seed: 3 restaurants, 9 items)
+- **Order Service** (`8082`): `GET /healthz`, `POST /orders`, `GET /orders/{id}` (validates via `RESTAURANT_URL`, in-memory store)
 
-| Service | Port | Job |
-|---|---:|---|
-| Restaurant | `8081` | Serves the restaurant/menu catalogue |
-| Order | `8082` | Validates orders by calling Restaurant, then stores them |
-
-The Order Service does **not** import Restaurant code. It calls `GET /restaurants/{id}` over HTTP with a short timeout.
-
----
-
-## 1. Quick start (recommended)
-
-From this folder:
-
-```bash
-./run.sh
-```
-
-`run.sh` will:
-
-1. build both Docker images,
-2. start both containers on a private Docker network,
-3. wait until both `/healthz` endpoints answer,
-4. print ready-to-copy commands.
-
-Check that everything is alive:
-
-```bash
-curl http://localhost:8081/healthz
-curl http://localhost:8082/healthz
-```
-
-Expected response from both:
-
-```json
-{"status":"ok"}
-```
-
----
-
-## 2. Manual Docker commands
-
-If you do not want to use `run.sh`:
+## Run with Docker
 
 ```bash
 docker compose up -d --build
-docker compose ps
-docker compose logs -f order
-docker compose down
+curl http://localhost:8081/healthz
+curl http://localhost:8082/healthz
+# stop: docker compose down
 ```
 
-If Docker says `permission denied`, either open a new terminal after the group change or add `sudo`:
+`docker-compose.yml` sets `RESTAURANT_URL=http://restaurant:8081` for the Order container.
 
-```bash
-sudo docker compose down
-```
+## API examples
 
----
+See [`api/examples.md`](api/examples.md).
 
-## 3. Try the API
-
-List restaurants:
-
-```bash
-curl http://localhost:8081/restaurants
-```
-
-Create an order:
-
-```bash
-curl -X POST http://localhost:8082/orders \
-  -H 'Content-Type: application/json' \
-  -H 'X-Correlation-ID: demo-001' \
-  -d '{"restaurant_id":"r1","items":[{"menu_item_id":"m1","quantity":2}]}'
-```
-
-You will get a response like:
-
-```json
-{
-  "order_id": "14c2bd39d9694dc8a71bc253a61850fe",
-  "correlation_id": "demo-001",
-  "status": "created",
-  "created_at": "2026-11-18T09:57:21.602Z",
-  "restaurant_id": "r1",
-  "items": [{"menu_item_id": "m1", "quantity": 2}]
-}
-```
-
-Copy the `order_id` and fetch the order:
-
-```bash
-curl http://localhost:8082/orders/14c2bd39d9694dc8a71bc253a61850fe
-```
-
-Orders are stored in memory only, so they disappear when the Order container restarts. This is expected for Assignment 01.
-
-More examples are in [`api/examples.md`](api/examples.md).
-
----
-
-## 4. Run the tests
-
-You need Python 3.12+.
+## Automated tests (14 cases)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-
-pip install -r services/restaurant/requirements.txt
-pip install -r services/order/requirements.txt
-pip install -r requirements-dev.txt
-
-(cd services/restaurant && pytest -q)
-(cd services/order && pytest -q)
+pip install -r services/restaurant/requirements.txt -r services/order/requirements.txt
+pytest -q services/restaurant/tests services/order/tests
 ```
 
-Current result: **3 restaurant tests + 11 order tests pass**.
+Covers health, catalogue, create/fetch order, malformed/missing/invalid/duplicate input, missing restaurant/item, bounded dependency outage (`503`), and 20 concurrent POSTs producing 20 unique IDs.
 
-The tests cover success, health, malformed JSON, missing fields, invalid quantity, duplicate item, missing restaurant, missing item, dependency outage with bounded latency, order lookup, and 20 concurrent orders producing 20 unique IDs.
+## Outage experiment
 
----
+Example logs: [`docs/outage-log.txt`](docs/outage-log.txt) (Restaurant stopped → `POST /orders` returns bounded `503 dependency_unavailable`).
 
-## 5. Outage experiment
-
-```bash
-./scripts/outage-demo.sh
-```
-
-This script:
-
-1. starts both services,
-2. creates a successful order,
-3. stops the Restaurant container,
-4. tries another order and shows `503 Service Unavailable`,
-5. prints correlation-ID-tagged logs.
-
-A saved run is in [`docs/outage-log.txt`](docs/outage-log.txt).
-
-To check bounded failure against already-running services (with Restaurant stopped):
-
-```bash
-./scripts/test-bounded-outage.sh
-```
-
-Prints status, elapsed time, response body, a reproducible `curl` link, and pass/fail. Configure with `ORDER_URL` and `THRESHOLD_MS`.
-
----
-
-## 6. Concurrency check
-
-With both services running:
-
-```bash
-./scripts/test-concurrent-unique-ids.sh
-```
-
-Sends concurrent `POST /orders` requests (default 21) and prints a report with created `order_id`s, fetch URLs, and a pass/fail summary (requires >=20 successful orders with unique IDs). Configure with `ORDER_URL` and `COUNT`.
-
----
-
-## 7. Project structure
+## Structure
 
 ```text
-Assignment-1/
-├── api/examples.md
-├── docs/outage-log.txt
-├── requirements-dev.txt
-├── scripts/outage-demo.sh
-├── scripts/test-bounded-outage.sh
-├── scripts/test-concurrent-unique-ids.sh
-├── services/
-│   ├── order/
-│   │   ├── app.py              # FastAPI order service
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── tests/
-│   └── restaurant/
-│       ├── app.py              # FastAPI restaurant service
-│       ├── Dockerfile
-│       ├── requirements.txt
-│       └── tests/
-├── docker-compose.yml
-├── run.sh
-└── README.md
+api/examples.md
+docker-compose.yml
+docs/outage-log.txt
+services/order/{app.py,Dockerfile,requirements.txt,tests/test_order.py}
+services/restaurant/{app.py,Dockerfile,requirements.txt,tests/test_restaurant.py}
+README.md
 ```
-
----
-
-## 8. Important environment variables
-
-| Variable | Used by | Default | Meaning |
-|---|---|---:|---|
-| `PORT` | both | `8081` / `8082` | Listening port |
-| `RESTAURANT_URL` | order | required | Base URL of Restaurant Service |
-| `RESTAURANT_TIMEOUT_MS` | order | `2000` | Max wait for Restaurant before `503` |
-
-Inside Docker, Compose sets `RESTAURANT_URL=http://restaurant:8081`. `localhost` would mean the Order container itself, so it must not be used there.

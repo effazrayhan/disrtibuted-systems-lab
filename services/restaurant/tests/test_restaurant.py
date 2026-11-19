@@ -1,8 +1,12 @@
+import importlib.util
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
-from app import app
-
-client = TestClient(app)
+spec = importlib.util.spec_from_file_location("restaurant_app", Path(__file__).resolve().parents[1] / "app.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+client = TestClient(mod.app)
 
 
 def test_healthz():
@@ -17,7 +21,7 @@ def test_list_restaurants():
     assert response.status_code == 200
     restaurants = response.json()["restaurants"]
     assert len(restaurants) >= 3
-    assert sum(len(restaurant["items"]) for restaurant in restaurants) >= 6
+    assert sum(len(r["items"]) for r in restaurants) >= 6
 
 
 def test_get_restaurant():
