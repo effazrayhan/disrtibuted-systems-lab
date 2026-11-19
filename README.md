@@ -142,9 +142,29 @@ This script:
 
 A saved run is in [`docs/outage-log.txt`](docs/outage-log.txt).
 
+To check bounded failure against already-running services (with Restaurant stopped):
+
+```bash
+./scripts/test-bounded-outage.sh
+```
+
+Prints status, elapsed time, response body, a reproducible `curl` link, and pass/fail. Configure with `ORDER_URL` and `THRESHOLD_MS`.
+
 ---
 
-## 6. Project structure
+## 6. Concurrency check
+
+With both services running:
+
+```bash
+./scripts/test-concurrent-unique-ids.sh
+```
+
+Sends concurrent `POST /orders` requests (default 21) and prints a report with created `order_id`s, fetch URLs, and a pass/fail summary (requires >=20 successful orders with unique IDs). Configure with `ORDER_URL` and `COUNT`.
+
+---
+
+## 7. Project structure
 
 ```text
 Assignment-1/
@@ -152,6 +172,8 @@ Assignment-1/
 ├── docs/outage-log.txt
 ├── requirements-dev.txt
 ├── scripts/outage-demo.sh
+├── scripts/test-bounded-outage.sh
+├── scripts/test-concurrent-unique-ids.sh
 ├── services/
 │   ├── order/
 │   │   ├── app.py              # FastAPI order service
@@ -170,7 +192,7 @@ Assignment-1/
 
 ---
 
-## 7. Important environment variables
+## 8. Important environment variables
 
 | Variable | Used by | Default | Meaning |
 |---|---|---:|---|
